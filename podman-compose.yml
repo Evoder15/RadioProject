@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  celery-worker:
+    image: cimg/python:3.12.1
+    build:
+      context: ./celery
+    command: celery -A app.celery worker --loglevel=info
+    volumes:
+      - ./celery:/celery
+    networks:
+      - project-network
+  go-gateway:
+    image: golang:latest
+    build:
+      context: ./go-server
+    command: go run main.go
+    volumes:
+      - ./go-server:/go-server
+    networks:
+      - project-network
+networks:
+  project-network:
+    driver: bridge
+
