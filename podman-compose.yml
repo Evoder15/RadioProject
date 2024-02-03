@@ -1,25 +1,52 @@
 version: '3'
-
 services:
   celery-worker:
-    image: cimg/python:3.12.1
     build:
       context: ./celery
-    command: celery -A app.celery worker --loglevel=info
+      dockerfile: Dockerfile
+    command: celery -A celery worker -E --loglevel=info
     volumes:
-      - ./celery:/celery
+      - ./celery/tasks:/celery/tasks
+    depends_on:
+      - rabbitmq
+      - mongodb
     networks:
       - project-network
+    working_dir: /celery
+    restart: always
   go-gateway:
     image: golang:latest
     build:
       context: ./go-server
-    command: go run main.go
+    #command: sleep 10000
+    command: ["tail", "-f", "/dev/null"]
     volumes:
       - ./go-server:/go-server
     networks:
       - project-network
+    working_dir: /go-server
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - project-network
+  mongodb:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+    networks:
+      - project-network
+    volumes:
+      - mongodb-data:/data/db
+
 networks:
   project-network:
     driver: bridge
 
+volumes:
+  mongodb-data:
