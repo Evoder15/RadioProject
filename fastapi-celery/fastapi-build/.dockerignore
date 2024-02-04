@@ -1,0 +1,6 @@
+__pycache__
+.git
+.vscode
+*.pyc
+/celery-build
+/fastapi-build

@@ -1,0 +1,9 @@
+aiofiles==23.2.1
+celery==5.3.6
+fastapi==0.109.1
+flower==2.0.1
+pytest==7.2.2
+redis==5.0.1
+requests==2.31.0
+uvicorn==0.27.0.post1
+httpx==0.26.0

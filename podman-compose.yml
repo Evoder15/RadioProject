@@ -1,37 +1,68 @@
 version: '3'
 services:
-  celery-worker:
-    build:
-      context: ./celery
-      dockerfile: Dockerfile
-    command: celery -A celery worker -E --loglevel=info
-    volumes:
-      - ./celery/tasks:/celery/tasks
-    depends_on:
-      - rabbitmq
-      - mongodb
-    networks:
-      - project-network
-    working_dir: /celery
-    restart: always
-  go-gateway:
-    image: golang:latest
+  go-htmx-server:
     build:
       context: ./go-server
-    #command: sleep 10000
-    command: ["tail", "-f", "/dev/null"]
+      dockerfile: Dockerfile
+    container_name: go-htmx-server
+    working_dir: /app
     volumes:
-      - ./go-server:/go-server
-    networks:
-      - project-network
-    working_dir: /go-server
-  rabbitmq:
-    image: "rabbitmq:3-management"
+      - ./go-server:/app
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "8080:8080"
+    command: go run start
+
+  celery-worker:
+    build:
+      context: ./fastapi-celery/celery-build
+      dockerfile: Dockerfile
+    command: celery -A worker.celery worker --loglevel=info --logfile=logs/celery.log
+    volumes:
+      - ./fastapi-celery:/usr/src/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - mongodb
+      - fastapi-app
     networks:
       - project-network
+    working_dir: /usr/src/app
+
+  fastapi-app:
+    build:
+      context: ./fastapi-celery/fastapi-build
+      dockerfile: Dockerfile
+    volumes:
+      - ./fastapi-celery:/usr/src/app
+    container_name: fastapi-app
+    # Add your FastAPI-specific configurations here
+    command: "uvicorn main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+
+  flower:
+    build:
+      context: ./fastapi-celery/celery-build
+      dockerfile: Dockerfile
+    container_name: flower
+    # Add your Flower-specific configurations here
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
+    ports:
+      - 5556:5555
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - fastapi-app
+      - redis
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    # Add your Redis-specific configurations here
+    ports:
+      - "6379:6379" 
   mongodb:
     image: mongo:latest
     environment:
